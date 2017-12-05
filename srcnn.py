@@ -41,7 +41,7 @@ class SRCNN:
         self.filter_sizes = filter_sizes
         self.input_depth = input_depth
         self.output_depth = output_depth
-        # self.learning_rate = learning_rate
+        self.learning_rate = learning_rate
         self.device = device
         self.global_step = tf.Variable(0, trainable=False)
         # self.learning_rate = tf.train.exponential_decay(learning_rate, self.global_step,

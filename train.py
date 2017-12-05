@@ -9,6 +9,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'srcnn'))
 import srcnn
 
@@ -26,7 +27,7 @@ flags.DEFINE_integer('upscale', 3, 'Upscale factor.')
 
 # Model training parameters
 flags.DEFINE_integer('num_epochs', 10000, 'Number of epochs to run trainer.')
-flags.DEFINE_integer('batch_size', 80, 'Batch size.')
+flags.DEFINE_integer('batch_size', 128, 'Batch size.')
 flags.DEFINE_integer('test_epoch_step', 10, 'print out current loss for every 10 epochs.')
 
 flags.DEFINE_string('device', '/cpu:0', 'What device should I train on?')
@@ -48,18 +49,15 @@ def train():
     with tf.Graph().as_default(), tf.device(FLAGS.device):
         # train_images, train_labels = SuperResData(imageset='BSD100', upscale_factor=FLAGS.upscale).tf_patches(batch_size=FLAGS.batch_size)
         image_obj = SuperResData(imageset='BSD100', upscale_factor=FLAGS.upscale)
+
         train_images, train_labels = image_obj.make_patches(patch_size=FLAGS.patch_size, stride=FLAGS.stride)
-        data_length = len(train_images)
+        print(len(train_images))
+        print(len(train_labels))
+        data_length = len(train_labels)
         train_images = np.float32(train_images)
         train_labels = np.float32(train_labels)
         train_images_tensor = tf.constant(train_images, name='train_images', dtype=tf.float32)
         train_labels_tensor = tf.constant(train_labels, name='train_labels', dtype=tf.float32)
-
-        # train_images = np.float32(pair_dic.key())
-        # train_labels = np.float32(pair_dic.value())
-        # train_images_tensor = tf.constant(pair_dic.key(), name='train_images', dtype=tf.float32)
-        # train_labels_tensor = tf.constant(pair_dic.value(), name='train_labels', dtype=tf.float32)
-
         # set placeholders, at test time use placeholder
         is_training = tf.placeholder_with_default(True, (), name='is_training')
         x_placeholder = tf.placeholder_with_default(tf.zeros(shape=(1, 10, 10, 3), dtype=tf.float32),
@@ -74,8 +72,8 @@ def train():
         # x needs to be interpolated to the shape of y
         h = tf.shape(x)[1] * FLAGS.upscale
         w = tf.shape(x)[2] * FLAGS.upscale
-        x_interp = tf.image.resize_bicubic(x, [h, w])
-        #x_interp = tf.minimum(tf.nn.relu(x_interp), 255)
+        # x_interp = tf.image.resize_bicubic(x, [h, w])
+        x_interp = tf.minimum(tf.nn.relu(x), 255)
 
         # build graph
         model = srcnn.SRCNN(x_interp, y, FLAGS.HIDDEN_LAYERS, FLAGS.KERNELS,
@@ -99,17 +97,6 @@ def train():
         update_loss = 0
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-        # for step in range(FLAGS.num_epochs):
-        #     _, train_loss = sess.run([model.opt, model.loss])
-        #     if step % FLAGS.test_step == 0:
-        #         print("Step: %i, Train Loss: %2.4f" %
-        #               (step, train_loss))
-        #         update_loss = train_loss
-        #         if update_loss < min(summary_loss):
-        #             print('new record')
-        #             print(update_loss)
-        #             save_path = saver.save(sess, os.path.join(SAVE_DIR, "bestmodel.ckpt"))
-        #             summary_loss.append(update_loss)
 
         for epoch in range(FLAGS.num_epochs):
             batch_inx = (data_length) // FLAGS.batch_size
@@ -127,9 +114,6 @@ def train():
                     print(update_loss)
                     save_path = saver.save(sess, os.path.join(SAVE_DIR, "bestmodel.ckpt"))
                     summary_loss.append(update_loss)
-            # if epoch % FLAGS.test_step == 0:  
-            #         print("Step: %i, Train Loss: %2.4f" % (epoch, train_loss))
-
 
 if __name__ == "__main__":
     FLAGS = flags.FLAGS

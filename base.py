@@ -7,6 +7,7 @@ import requests
 import zipfile
 from io import StringIO
 from PIL import Image
+from scipy.misc import imresize
 
 
 def _download_images(dir):
@@ -57,6 +58,8 @@ class SuperResData:
         for x, y in self.read():
             if len(x.shape) != 3:
                 continue
+            x = imresize(x, size=(y.shape[0], y.shape[1]), interp='bicubic')
+            print(x.shape, y.shape)
             h, w, _ = x.shape
             for i in np.arange(0, h, stride):
                 for j in np.arange(0, w, stride):
@@ -65,26 +68,10 @@ class SuperResData:
                     if (hi_high > h) or (wi_high > w):
                         continue
                     X_sub.append(x[np.newaxis, hi_low:hi_high, wi_low:wi_high])
-                    Y_sub.append(y[np.newaxis, self.upscale_factor * hi_low:self.upscale_factor * hi_high, self.upscale_factor * wi_low:self.upscale_factor * wi_high])
+                    Y_sub.append(y[np.newaxis, hi_low:hi_high, wi_low:wi_high])
         X_sub = np.concatenate(X_sub, axis=0)
         Y_sub = np.concatenate(Y_sub, axis=0)
         return X_sub, Y_sub
-
-    def tf_shuffle_pipeline(self, X, Y, batch_size):
-        data = [tf.constant(X, name='x', dtype=tf.float32), tf.constant(Y, name='y', dtype=tf.float32)]
-        batch = tf.train.shuffle_batch(data,
-                                       batch_size=batch_size,
-                                       num_threads=8,
-                                       capacity=1000,
-                                       min_after_dequeue=500,
-                                       enqueue_many=True)
-        return batch[0], batch[1]
-
-    def tf_patches(self, batch_size=None, patch_size=33,
-                   stride=14, scope=None):
-        X, Y = self.make_patches(patch_size=patch_size, stride=stride)
-        with tf.variable_scope(scope, "shuffle_patches"):
-            return self.tf_shuffle_pipeline(X, Y, batch_size=batch_size)
 
     def get_images(self):
         """
