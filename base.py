@@ -63,7 +63,7 @@ class SuperResData:
             x = imresize(x, size=(y.shape[0], y.shape[1]), interp='bicubic')
             # x = cv2.resize(x, (0, 0), fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
             h, w, _ = x.shape
-            print(y.shape[0], y.shape[1], x.shape[0], x.shape[1], h, w)
+            # print(y.shape[0], y.shape[1], x.shape[0], x.shape[1], h, w)
             for i in np.arange(0, h, stride):
                 for j in np.arange(0, w, stride):
                     hi_low, hi_high = i, i + patch_size
