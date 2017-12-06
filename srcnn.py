@@ -86,8 +86,8 @@ class SRCNN:
             err = tf.square(predictions - _y)
             err_filled = utils.fill_na(err, 0)
             finite_count = tf.reduce_sum(tf.cast(tf.is_finite(err), tf.float32))
-            rmse = tf.sqrt(tf.reduce_sum(err_filled) / finite_count)
-            return rmse
+            mse = tf.reduce_sum(err_filled) / finite_count
+            return mse
 
     def _optimize(self):
         opt1 = tf.train.AdamOptimizer(self.learning_rate)
@@ -109,7 +109,7 @@ class SRCNN:
         self._normalize()
         with tf.device(self.device):
             _prediction_norm = self._inference(self.x_norm)
+            print(self.y_variance, self.y_mean)
             self.loss = self._loss(_prediction_norm)
             self._optimize()
-
         self.prediction = _prediction_norm * tf.sqrt(self.y_variance) + self.y_mean

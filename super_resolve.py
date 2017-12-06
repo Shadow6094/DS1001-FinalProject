@@ -10,7 +10,7 @@ import srcnn
 # model parameters
 flags = tf.flags
 
-flags.DEFINE_string('checkpoint_dir', 'results/64-32-3_9-5-5_128', 'Checkpoint directory.')
+flags.DEFINE_string('checkpoint_dir', 'results/64-32-3_9-1-5_256', 'Checkpoint directory.')
 flags.DEFINE_string('image_file', 'lr.png', 'Sample image file.')
 
 FLAGS = flags.FLAGS
@@ -19,7 +19,7 @@ FLAGS._parse_flags()
 experiment = os.path.basename(FLAGS.checkpoint_dir)
 layer_sizes = [int(k) for k in experiment.split("_")[0].split("-")]
 filter_sizes = [int(k) for k in experiment.split("_")[1].split("-")]
-
+print(layer_sizes)
 x = tf.placeholder(tf.float32, shape=(None, None, None, 3),
                    name="input")
 y = tf.placeholder(tf.float32, shape=(None, None, None, 3),
@@ -43,7 +43,6 @@ saver.restore(sess, checkpoint)
 img = cv2.imread(FLAGS.image_file)
 print(img.shape)
 hr = img.copy()
-
 
 hr = cv2.resize(hr, (0, 0), fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
 new = hr.copy()
@@ -85,5 +84,6 @@ cv2.imwrite('color_img.png', hr)
 cv2.imwrite('color_img_new.png', new)
 ori = cv2.imread('hr.png')
 print(ori.shape)
-# print(compute_psnr(hr, ori))
-# print(compute_psnr(new, ori))
+print(compute_psnr(hr, ori))
+print(compute_psnr(new, ori))
+print(hr)

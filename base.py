@@ -8,6 +8,8 @@ import zipfile
 from io import StringIO
 from PIL import Image
 from scipy.misc import imresize
+from scipy import interpolate
+import cv2
 
 
 def _download_images(dir):
@@ -36,7 +38,7 @@ class SuperResData:
         hr_images = {}
         lr_images = {}
         for i, f in enumerate(os.listdir(self.data_dir)):
-            img = scipy.misc.imread(os.path.join(self.data_dir, f)) / 255.
+            img = scipy.misc.imread(os.path.join(self.data_dir, f))
             if "HR" in f:
                 hr_images["".join(f.split("_")[:3])] = img
             elif "LR" in f:
@@ -59,18 +61,20 @@ class SuperResData:
             if len(x.shape) != 3:
                 continue
             x = imresize(x, size=(y.shape[0], y.shape[1]), interp='bicubic')
-            print(x.shape, y.shape)
+            # x = cv2.resize(x, (0, 0), fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
             h, w, _ = x.shape
+            print(y.shape[0], y.shape[1], x.shape[0], x.shape[1], h, w)
             for i in np.arange(0, h, stride):
                 for j in np.arange(0, w, stride):
                     hi_low, hi_high = i, i + patch_size
                     wi_low, wi_high = j, j + patch_size
                     if (hi_high > h) or (wi_high > w):
                         continue
-                    X_sub.append(x[np.newaxis, hi_low:hi_high, wi_low:wi_high])
-                    Y_sub.append(y[np.newaxis, hi_low:hi_high, wi_low:wi_high])
+                    X_sub.append(x[np.newaxis, hi_low:hi_high, wi_low:wi_high] / 255)
+                    Y_sub.append(y[np.newaxis, hi_low:hi_high, wi_low:wi_high] / 255)
         X_sub = np.concatenate(X_sub, axis=0)
         Y_sub = np.concatenate(Y_sub, axis=0)
+        # print(X_sub.shape, Y_sub.shape)
         return X_sub, Y_sub
 
     def get_images(self):

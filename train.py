@@ -8,7 +8,7 @@ import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-
+import cv2
 
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'srcnn'))
 import srcnn
@@ -20,16 +20,14 @@ from base import SuperResData
 flags = tf.app.flags
 
 # model hyperparamters
-flags.DEFINE_string('hidden', '32,64,3', 'Number of units in hidden layer 1.')
+flags.DEFINE_string('hidden', '64,32,3', 'Number of units in hidden layer 1.')
 flags.DEFINE_string('kernels', '9,1,5', 'Kernel size of layer 1.')
 flags.DEFINE_integer('depth', 3, 'Number of input channels.')
 flags.DEFINE_integer('upscale', 3, 'Upscale factor.')
 
 # Model training parameters
 flags.DEFINE_integer('num_epochs', 10000, 'Number of epochs to run trainer.')
-flags.DEFINE_integer('batch_size', 128, 'Batch size.')
-flags.DEFINE_integer('test_epoch_step', 10, 'print out current loss for every 10 epochs.')
-
+flags.DEFINE_integer('batch_size', 256, 'Batch size.')
 flags.DEFINE_string('device', '/cpu:0', 'What device should I train on?')
 
 # where to save things
@@ -49,16 +47,14 @@ def train():
     with tf.Graph().as_default(), tf.device(FLAGS.device):
         # train_images, train_labels = SuperResData(imageset='BSD100', upscale_factor=FLAGS.upscale).tf_patches(batch_size=FLAGS.batch_size)
         image_obj = SuperResData(imageset='BSD100', upscale_factor=FLAGS.upscale)
-
         train_images, train_labels = image_obj.make_patches(patch_size=FLAGS.patch_size, stride=FLAGS.stride)
-        print(len(train_images))
-        print(len(train_labels))
         data_length = len(train_labels)
         train_images = np.float32(train_images)
         train_labels = np.float32(train_labels)
         train_images_tensor = tf.constant(train_images, name='train_images', dtype=tf.float32)
         train_labels_tensor = tf.constant(train_labels, name='train_labels', dtype=tf.float32)
         # set placeholders, at test time use placeholder
+
         is_training = tf.placeholder_with_default(True, (), name='is_training')
         x_placeholder = tf.placeholder_with_default(tf.zeros(shape=(1, 10, 10, 3), dtype=tf.float32),
                                                     shape=(None, None, None, 3),
@@ -69,9 +65,6 @@ def train():
         x = tf.cond(is_training, lambda: train_images_tensor, lambda: x_placeholder)
         y = tf.cond(is_training, lambda: train_labels_tensor, lambda: y_placeholder)
 
-        # x needs to be interpolated to the shape of y
-        h = tf.shape(x)[1] * FLAGS.upscale
-        w = tf.shape(x)[2] * FLAGS.upscale
         # x_interp = tf.image.resize_bicubic(x, [h, w])
         x_interp = tf.minimum(tf.nn.relu(x), 255)
 
@@ -93,10 +86,8 @@ def train():
         sess.run(init_op)
 
         # Start input enqueue threads.
-        summary_loss = [10]
+        summary_loss = [100000]
         update_loss = 0
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         for epoch in range(FLAGS.num_epochs):
             batch_inx = (data_length) // FLAGS.batch_size
@@ -104,16 +95,14 @@ def train():
                 batch_images = train_images[idx * FLAGS.batch_size: (idx + 1) * FLAGS.batch_size]
                 batch_labels = train_labels[idx * FLAGS.batch_size: (idx + 1) * FLAGS.batch_size]
                 _, train_loss = sess.run([model.opt, model.loss], feed_dict={x: batch_images, y: batch_labels})
-
-                # if epoch % FLAGS.test_step == 0:  
-                print("Step: %i, Index: %i, Train Loss: %2.4f" % (epoch, idx, train_loss))
+                # print("Step: %i, Index: %i, Train Loss: %2.4f" % (epoch, idx, train_loss))
                 update_loss = train_loss
                 if update_loss < min(summary_loss):
                     print('new record')
-                    # print("Step: %i, Index: %i, Train Loss: %2.4f" % (epoch, idx, train_loss))
-                    print(update_loss)
+                    print("Step: %i, Index: %i, Train Loss: %2.4f" % (epoch, idx, train_loss))
                     save_path = saver.save(sess, os.path.join(SAVE_DIR, "bestmodel.ckpt"))
                     summary_loss.append(update_loss)
+
 
 if __name__ == "__main__":
     FLAGS = flags.FLAGS
@@ -131,7 +120,7 @@ if __name__ == "__main__":
         FLAGS.hidden.replace(",", "-"), FLAGS.kernels.replace(",", "-"),
         FLAGS.batch_size))
     FLAGS.log_dir = os.path.join(file_dir, FLAGS.log_dir)
-
+    print(SAVE_DIR)
     _maybe_make_dir(FLAGS.log_dir)
     _maybe_make_dir(os.path.dirname(SAVE_DIR))
     _maybe_make_dir(SAVE_DIR)
